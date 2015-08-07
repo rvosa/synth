@@ -104,6 +104,9 @@ has 'duration' => ( is => 'rw', isa => 'Num|PDL' );
 package Audio::Synth::Modular::Filter;
 use Moose;
 
+has 'frequency' => ( is => 'rw', isa => 'Num|PDL' );
+has 'level'     => ( is => 'rw', isa => 'Num|PDL' );
+
 extends 'Audio::Synth::Modular::Throughput';
 
 1;

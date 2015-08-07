@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+use lib 'lib';
 use PDL::Audio::Pitches;
 use Audio::Synth::Modular;
 
@@ -14,4 +15,9 @@ my $env = Audio::Synth::Modular::Envelope->new(
 	level    => 0.5,
 	duration => 0.5,
 );
+my $flt = Audio::Synth::Modular::Filter->new(
+	frequency => a4,
+	level     => 0.5,
+);
 $osc->register($env);
+$env->register($flt);
