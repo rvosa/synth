@@ -5,7 +5,7 @@ my $id_counter = 1;
 
 has 'buffer' => ( is => 'rw', isa => 'PDL' );
 has 'id'     => ( is => 'ro', isa => 'Num' );
-has 'size'   => ( is => 'rw', isa => 'Num' );
+has 'size'   => ( is => 'rw', isa => 'Num', default => 44_100 );
 
 around BUILDARGS => sub {
 	my $orig  = shift;
@@ -81,16 +81,32 @@ has 'name'  => ( is => 'rw', isa => 'Str' );
 package Audio::Synth::Modular::Oscillator;
 use Moose;
 use Moose::Util::TypeConstraints;
+use PDL::Audio;
 
 extends 'Audio::Synth::Modular::Throughput';
 
 has 'frequency' => ( is => 'rw', isa => 'Num|PDL' );
-has 'phase'     => ( is => 'rw', isa => 'Num|PDL' );
-has 'amplitude' => ( is => 'rw', isa => 'Num|PDL' );
+has 'phase'     => ( is => 'rw', isa => 'Num|PDL', default => 0 );
 has 'shape'     => ( is => 'rw', isa => enum(qw[sine square saw triangle pulse rand]) );
+
+my %generators = (
+	'sine'     => \&gen_oscil,
+	'square'   => \&gen_square,
+	'saw'      => \&gen_sawtooth,
+	'triangle' => \&gen_triangle,
+	'pulse'    => \&gen_pulse_train,
+	'gen_rand' => \&gen_rand,
+);
+
+sub process {
+	my $self = shift;
+	my $gen = $generators{ $self->shape };
+	$self->buffer($gen->( $self->buffer // $self->size, $self->frequency, $self->phase ));
+}
 
 package Audio::Synth::Modular::Envelope;
 use Moose;
+use PDL::Audio;
 
 extends 'Audio::Synth::Modular::Throughput';
 
@@ -99,7 +115,20 @@ has 'decay'    => ( is => 'rw', isa => 'Num|PDL' );
 has 'sustain'  => ( is => 'rw', isa => 'Num|PDL' );
 has 'release'  => ( is => 'rw', isa => 'Num|PDL' );
 has 'level'    => ( is => 'rw', isa => 'Num|PDL' );
-has 'duration' => ( is => 'rw', isa => 'Num|PDL' );
+
+sub process {
+	my $self = shift;
+	my $buf = $self->buffer // $self->size;
+	my $pdl = PDL::Audio::gen_adsr( 
+		$buf,
+		$self->level,
+		$self->attack,
+		$self->decay,
+		$self->sustain,
+		$self->release,
+	);
+	$self->buffer($buf);
+}
 
 package Audio::Synth::Modular::Filter;
 use Moose;
@@ -108,7 +137,5 @@ extends 'Audio::Synth::Modular::Throughput';
 
 has 'frequency' => ( is => 'rw', isa => 'Num|PDL' );
 has 'level'     => ( is => 'rw', isa => 'Num|PDL' );
-
-extends 'Audio::Synth::Modular::Throughput';
 
 1;

@@ -21,3 +21,5 @@ my $flt = Audio::Synth::Modular::Filter->new(
 );
 $osc->register($env);
 $env->register($flt);
+$osc->process;
+$osc->notify;
