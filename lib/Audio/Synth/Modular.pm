@@ -88,7 +88,7 @@ extends 'Audio::Synth::Modular::Throughput';
 
 has 'frequency' => ( is => 'rw', isa => 'Num|PDL' );
 has 'phase'     => ( is => 'rw', isa => 'Num|PDL', default => 0 );
-has 'shape'     => ( is => 'rw', isa => enum('sine','square','saw','triangle','pulse','rand') );
+has 'shape'     => ( is => 'rw', isa => enum([qw'sine square saw triangle pulse rand']) );
 
 my %generators = (
 	'sine'     => \&gen_oscil,
@@ -102,7 +102,7 @@ my %generators = (
 sub process {
 	my $self = shift;
 	my $gen = $generators{ $self->shape };
-	my $pdl = $gen->( $self->buffer // $self->size, $self->frequency, $self->phase );
+	my $pdl = $gen->( $self->size, $self->frequency / 44_100, $self->phase );
 	$self->buffer($pdl);
 }
 
