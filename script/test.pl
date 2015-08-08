@@ -4,22 +4,21 @@ use PDL::Audio::Pitches;
 use Audio::Synth::Modular;
 
 my $osc = Audio::Synth::Modular::Oscillator->new(
-	frequency => a4,
-	shape     => 'square',
+	frequency => a6,
+	shape     => 'rand',
 );
 my $env = Audio::Synth::Modular::Envelope->new(
-	attack   => 0.1,
+	attack   => 0.01,
 	decay    => 0.1,
-	sustain  => 1.0,
-	release  => 0.5,
-	level    => 0.5,
-	duration => 0.5,
+	sustain  => 0.3,
+	release  => 1.0,
+	level    => 0.2,
 );
 my $flt = Audio::Synth::Modular::Filter->new(
-	frequency => a4,
-	level     => 0.5,
+	frequency => a2,
+	radius    => 0.1,
 );
-$osc->register($env);
-$env->register($flt);
+my $out = Audio::Synth::Modular::FileWriter->new( path => 'deleteme.au' );
+$osc->to($env)->to($flt)->to($out);
 $osc->process;
 $osc->notify;
