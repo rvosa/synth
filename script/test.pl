@@ -4,8 +4,8 @@ use PDL::Audio::Pitches;
 use Audio::Synth::Modular;
 
 my $osc = Audio::Synth::Modular::Oscillator->new(
-	frequency => a6,
-	shape     => 'rand',
+	frequency => a2,
+	shape     => 'saw',
 );
 my $env = Audio::Synth::Modular::Envelope->new(
 	attack   => 0.01,
