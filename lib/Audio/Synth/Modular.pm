@@ -6,6 +6,7 @@ my $id_counter = 1;
 has 'buffer' => ( is => 'rw', isa => 'PDL' );
 has 'id'     => ( is => 'ro', isa => 'Num' );
 has 'size'   => ( is => 'rw', isa => 'Num', default => 44_10 );
+has 'rate'   => ( is => 'rw', isa => 'Num', default => 44_100 );
 
 around BUILDARGS => sub {
 	my $orig  = shift;
@@ -102,7 +103,7 @@ my %generators = (
 sub process {
 	my $self = shift;
 	my $gen = $generators{ $self->shape };
-	my $pdl = $gen->( $self->size, $self->frequency / 44_100, $self->phase );
+	my $pdl = $gen->( $self->size, $self->frequency / $self->rate, $self->phase );
 	$self->buffer($pdl);
 }
 
@@ -143,12 +144,11 @@ has 'radius'    => ( is => 'rw', isa => 'Num|PDL' );
 sub process {
 	my $self = shift;
 	my $buf = $self->buffer;
-	PDL::Audio::filter_ppolar(
+	$self->buffer(PDL::Audio::filter_ppolar(
 		$buf,
 		$self->radius,
-		$self->frequency
-	);
-	$self->buffer($buf);
+		$self->frequency / $self->rate
+	));
 }
 
 package Audio::Synth::Modular::FileWriter;

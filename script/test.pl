@@ -16,7 +16,7 @@ my $env = Audio::Synth::Modular::Envelope->new(
 );
 my $flt = Audio::Synth::Modular::Filter->new(
 	frequency => a2,
-	radius    => 0.1,
+	radius    => 0.99,
 );
 my $out = Audio::Synth::Modular::FileWriter->new( path => 'deleteme.au' );
 $osc->to($env)->to($flt)->to($out);
