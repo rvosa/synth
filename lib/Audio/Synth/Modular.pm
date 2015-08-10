@@ -1,4 +1,5 @@
 package Audio::Synth::Modular;
+
 package Audio::Synth::Modular::Module;
 use Moose;
 my $id_counter = 1;
@@ -22,6 +23,35 @@ around BUILDARGS => sub {
 	return $class->$orig(%args);
 };
 
+sub clone {
+	my $self = shift;
+	bless { %$self }, $self->blessed;
+}
+
+package Audio::Synth::Modular::Modulator;
+use Carp;
+use Moose;
+use Moose::Util::TypeConstraints;
+extends 'Audio::Synth::Modular::Module';
+
+sub pdl {
+	my $self = shift;
+	my $pdl = $self->modulate;
+	my $min = $self->min;
+	my $scale = $self->max - $min;
+	$pdl *= $scale;
+	$pdl += $min;
+	return $pdl;
+}
+
+has 'min' => ( is => 'rw', isa => 'Num', default => 0 );
+has 'max' => ( is => 'rw', isa => 'Num', default => 1 );
+
+sub modulate {
+	my $class = shift->blessed;
+	die "$class should modulate() a buffer, but doesn't";
+}
+
 package Audio::Synth::Modular::Input;
 use Moose;
 extends 'Audio::Synth::Modular::Module';
@@ -35,7 +65,7 @@ package Audio::Synth::Modular::Output;
 use Moose;
 extends 'Audio::Synth::Modular::Module';
 
-has 'listeners' => ( is => 'rw', isa => 'ArrayRef[Audio::Synth::Modular::Channel]' );
+has 'listeners'  => ( is => 'rw', isa => 'ArrayRef[Audio::Synth::Modular::Channel]' );
 
 sub to {
 	my ( $self, $input, $name ) = @_;
@@ -85,10 +115,10 @@ use Moose;
 use Moose::Util::TypeConstraints;
 use PDL::Audio;
 
-extends 'Audio::Synth::Modular::Throughput';
+extends 'Audio::Synth::Modular::Throughput', 'Audio::Synth::Modular::Modulator';
 
-has 'frequency' => ( is => 'rw', isa => 'Num|PDL' );
-has 'phase'     => ( is => 'rw', isa => 'Num|PDL', default => 0 );
+has 'frequency' => ( is => 'rw', isa => 'Num|PDL|Audio::Synth::Modular::Modulator' );
+has 'phase'     => ( is => 'rw', isa => 'Num|PDL|Audio::Synth::Modular::Modulator', default => 0 );
 has 'shape'     => ( is => 'rw', isa => enum([qw'sine square saw triangle pulse rand']) );
 
 my %generators = (
@@ -100,28 +130,32 @@ my %generators = (
 	'rand'     => \&gen_rand,
 );
 
-sub process {
+sub modulate {
 	my $self = shift;
 	my $gen = $generators{ $self->shape };
-	my $pdl = $gen->( $self->size, $self->frequency / $self->rate, $self->phase );
-	$self->buffer($pdl);
+	return $gen->( $self->size, $self->frequency / $self->rate, $self->phase );
+}
+
+sub process {
+	my $self = shift;
+	$self->buffer($self->modulate);
 }
 
 package Audio::Synth::Modular::Envelope;
 use Moose;
 use PDL::Audio;
 
-extends 'Audio::Synth::Modular::Throughput';
+extends 'Audio::Synth::Modular::Throughput', 'Audio::Synth::Modular::Modulator';
 
-has 'attack'   => ( is => 'rw', isa => 'Num|PDL' );
-has 'decay'    => ( is => 'rw', isa => 'Num|PDL' );
-has 'sustain'  => ( is => 'rw', isa => 'Num|PDL' );
-has 'release'  => ( is => 'rw', isa => 'Num|PDL' );
-has 'level'    => ( is => 'rw', isa => 'Num|PDL' );
+has 'attack'   => ( is => 'rw', isa => 'Num|PDL|Audio::Synth::Modular::Modulator' );
+has 'decay'    => ( is => 'rw', isa => 'Num|PDL|Audio::Synth::Modular::Modulator' );
+has 'sustain'  => ( is => 'rw', isa => 'Num|PDL|Audio::Synth::Modular::Modulator' );
+has 'release'  => ( is => 'rw', isa => 'Num|PDL|Audio::Synth::Modular::Modulator' );
+has 'level'    => ( is => 'rw', isa => 'Num|PDL|Audio::Synth::Modular::Modulator' );
 
-sub process {
+sub modulate {
 	my $self = shift;
-	my $env = PDL::Audio::gen_adsr( 
+	return PDL::Audio::gen_adsr( 
 		$self->size,
 		$self->level,
 		$self->attack,
@@ -129,7 +163,11 @@ sub process {
 		$self->sustain,
 		$self->release,
 	);
-	$self->buffer($self->buffer * $env);
+}
+
+sub process {
+	my $self = shift;
+	$self->buffer($self->buffer * $self->modulate);
 }
 
 package Audio::Synth::Modular::Filter;
@@ -138,16 +176,21 @@ use PDL::Audio;
 
 extends 'Audio::Synth::Modular::Throughput';
 
-has 'frequency' => ( is => 'rw', isa => 'Num|PDL' );
-has 'radius'    => ( is => 'rw', isa => 'Num|PDL' );
+# radius is most noticeable with values 0.7..0.99
+# frequency is most noticeable with values multiples of osc freq, 1..10
+has 'frequency' => ( is => 'rw', isa => 'Num|PDL|Audio::Synth::Modular::Modulator' );
+has 'radius'    => ( is => 'rw', isa => 'Num|PDL|Audio::Synth::Modular::Modulator' );
 
 sub process {
 	my $self = shift;
 	my $buf = $self->buffer;
+	my $val = $self->frequency;
+	my $freq = ref $val ? ( $val->can('pdl') ? $val->pdl : $val ) : $val;
+	$freq /= $self->rate;
 	$self->buffer(PDL::Audio::filter_ppolar(
 		$buf,
 		$self->radius,
-		$self->frequency / $self->rate
+		$freq
 	));
 }
 
