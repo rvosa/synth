@@ -37,10 +37,17 @@ extends 'Audio::Synth::Modular::Module';
 sub pdl {
 	my $self = shift;
 	my $pdl = $self->modulate;
-	my $min = $self->min;
-	my $scale = $self->max - $min;
-	$pdl *= $scale;
-	$pdl += $min;
+	
+	# normalize to 0 .. 1;
+	my ( $pmin, $pmax ) = $pdl->minmax;	
+	$pdl -= $pmin;
+	$pdl /= ( $pmax - $pmin );
+	
+	# normalize to min .. max
+	my ( $mmin, $mmax ) = ( $self->min, $self->max );	
+	$pdl *= ( $mmax - $mmin );
+	$pdl += $mmin;
+	
 	return $pdl;
 }
 
@@ -133,7 +140,9 @@ my %generators = (
 sub modulate {
 	my $self = shift;
 	my $gen = $generators{ $self->shape };
-	return $gen->( $self->size, $self->frequency / $self->rate, $self->phase );
+	my $val = $self->frequency;	
+	my $freq = ref $val ? ( $val->can('pdl') ? $val->pdl : $val ) : $val;	
+	return $gen->( $self->size, $freq / $self->rate, $self->phase );
 }
 
 sub process {
