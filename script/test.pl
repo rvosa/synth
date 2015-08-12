@@ -8,11 +8,11 @@ my $size = 44_100;
 
 # create an LFO scaled between a3 and a4 in a 1-second cycle
 my $pitch_osc = Audio::Synth::Modular::Oscillator->new(
-	frequency => 1 / $size, # i.e. wave length
-	shape     => 'sine',    # wave shape
-	size      => $size,     # total number of samples
-	min       => a3,        # minimum amplitude
-	max       => a4,        # maximum amplitude
+	frequency => 1,          # i.e. wave length
+	shape     => 'triangle', # wave shape
+	size      => $size,      # total number of samples
+	min       => a3,         # minimum amplitude
+	max       => a4,         # maximum amplitude
 );
 
 # create a sine wave oscillator at whose pitch is modulated
